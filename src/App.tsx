@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 
+declare global {
+  interface Window {
+    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  }
+}
+
 const DEFAULT_STEPS = 16;
 const STEP_INTERVALS_PER_BEAT = 4; // 16th notes
 const STEP_OPTIONS = [16, 8] as const;
@@ -181,6 +188,7 @@ const App: React.FC = () => {
   const { ctx, ensureContext } = useAudioContext();
   const noiseBufferRef = useRef<AudioBuffer | null>(null);
   const shareTimeoutRef = useRef<number | null>(null);
+  const idleCallbackRef = useRef<number | null>(null);
 
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
@@ -191,26 +199,52 @@ const App: React.FC = () => {
     if (shareTimeoutRef.current) {
       window.clearTimeout(shareTimeoutRef.current);
     }
+    if (idleCallbackRef.current !== null) {
+      if (window.cancelIdleCallback) {
+        window.cancelIdleCallback(idleCallbackRef.current);
+      } else {
+        window.clearTimeout(idleCallbackRef.current);
+      }
+      idleCallbackRef.current = null;
+    }
 
     setIsGeneratingLink(true);
     shareTimeoutRef.current = window.setTimeout(() => {
-      const url = new URL(window.location.href);
-      const encoded = encodePattern(pattern, stepsRef.current);
-      url.searchParams.set('p', encoded);
-      url.searchParams.set('l', String(stepsRef.current));
-      window.history.replaceState(null, '', url.toString());
-      setShareLink(url.toString());
-      setIsGeneratingLink(false);
+      const generateLink = () => {
+        const url = new URL(window.location.href);
+        const encoded = encodePattern(patternRef.current, steps);
+        url.searchParams.set('p', encoded);
+        url.searchParams.set('l', String(steps));
+        window.history.replaceState(null, '', url.toString());
+        setShareLink(url.toString());
+        setIsGeneratingLink(false);
+        idleCallbackRef.current = null;
+      };
+
+      if (window.requestIdleCallback) {
+        idleCallbackRef.current = window.requestIdleCallback(generateLink, { timeout: 300 });
+      } else {
+        generateLink();
+      }
+
       shareTimeoutRef.current = null;
-    }, 200);
+    }, 150);
 
     return () => {
       if (shareTimeoutRef.current) {
         window.clearTimeout(shareTimeoutRef.current);
         shareTimeoutRef.current = null;
       }
+      if (idleCallbackRef.current !== null) {
+        if (window.cancelIdleCallback) {
+          window.cancelIdleCallback(idleCallbackRef.current);
+        } else {
+          window.clearTimeout(idleCallbackRef.current);
+        }
+        idleCallbackRef.current = null;
+      }
     };
-  }, [pattern]);
+  }, [pattern, steps]);
 
   useEffect(() => {
     bpmRef.current = bpm;
@@ -251,10 +285,20 @@ const App: React.FC = () => {
   }, [isPlaying, ensureContext]);
 
   const toggleStep = (instrumentId: InstrumentId, step: number) => {
-    setPattern((prev) => ({
-      ...prev,
-      [instrumentId]: prev[instrumentId].map((val, idx) => (idx === step ? !val : val)),
-    }));
+    setPattern((prev) => {
+      const row = prev[instrumentId];
+      const updatedRow = row.slice();
+      updatedRow[step] = !row[step];
+
+      if (updatedRow[step] === row[step]) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [instrumentId]: updatedRow,
+      };
+    });
   };
 
   const handleStepsChange = (nextSteps: (typeof STEP_OPTIONS)[number]) => {
@@ -267,7 +311,9 @@ const App: React.FC = () => {
         if (nextSteps < current.length) {
           resized[id] = current.slice(0, nextSteps);
         } else {
-          resized[id] = [...current, ...Array(nextSteps - current.length).fill(false)];
+          const missing = nextSteps - current.length;
+          const copy = current.slice(0, missing);
+          resized[id] = [...current, ...copy];
         }
       });
       return resized as Pattern;
