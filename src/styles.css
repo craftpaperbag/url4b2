@@ -611,6 +611,55 @@ button {
   }
 }
 
+@media (max-width: 480px) {
+  .floating-controls {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .floating-row {
+    gap: 6px;
+  }
+
+  .floating-row:first-of-type {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .floating-row:last-of-type {
+    grid-template-columns: 1.3fr 0.7fr;
+  }
+
+  .primary,
+  .secondary,
+  .icon-button {
+    font-size: 13px;
+    padding: 7px 10px;
+    min-width: 0;
+  }
+
+  .floating-step-toggle {
+    gap: 6px;
+  }
+
+  .floating-step-toggle .secondary.compact {
+    padding: 7px 10px;
+    min-width: 0;
+  }
+
+  .play-toggle .icon {
+    font-size: 20px;
+  }
+
+  .synth-toggle.floating {
+    padding: 6px 8px;
+  }
+
+  .floating-bpm {
+    gap: 4px;
+    padding: 5px 6px;
+  }
+}
+
 @media (max-width: 640px) {
   .row {
     grid-template-columns: 1fr;
