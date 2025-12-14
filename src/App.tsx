@@ -159,10 +159,11 @@ const playHiHat = (context: AudioContext, time: number, noiseBuffer: AudioBuffer
 };
 
 const App: React.FC = () => {
-  const getInitialSteps = () => {
+  const getInitialSteps = (): (typeof STEP_OPTIONS)[number] => {
     const param = new URL(window.location.href).searchParams.get('l');
-    return STEP_OPTIONS.includes(Number(param) as (typeof STEP_OPTIONS)[number])
-      ? Number(param)
+    const parsed = Number(param);
+    return STEP_OPTIONS.includes(parsed as (typeof STEP_OPTIONS)[number])
+      ? (parsed as (typeof STEP_OPTIONS)[number])
       : DEFAULT_STEPS;
   };
 
@@ -346,7 +347,7 @@ const App: React.FC = () => {
           <button className="primary" onClick={handlePlayToggle}>
             {isPlaying ? '一時停止' : '再生'}
           </button>
-          <button className="ghost" onClick={() => setPattern(createEmptyPattern())}>クリア</button>
+          <button className="ghost" onClick={() => setPattern(createEmptyPattern(steps))}>クリア</button>
         </div>
       </header>
 
