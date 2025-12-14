@@ -100,10 +100,11 @@ export const buildDrumMachine = (): DrumMachine => {
   };
 
   const scheduleStep = (time: number, pattern: PatternGrid, stepIndex: number) => {
-    if (!audioCtx || !voices) return;
+    const machineVoices = voices;
+    if (!audioCtx || !machineVoices) return;
     (['kick', 'snare', 'hihat'] as InstrumentId[]).forEach((instrument) => {
       if (pattern[instrument][stepIndex]) {
-        voices[instrument](time);
+        machineVoices[instrument](time);
       }
     });
   };
