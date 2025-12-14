@@ -39,6 +39,24 @@ const instruments = [
 type InstrumentId = (typeof instruments)[number]['id'];
 type Pattern = Record<InstrumentId, boolean[]>;
 
+const SYNTH_KEYS = [
+  { key: 'a', label: 'A', note: 'C4', frequency: 261.63 },
+  { key: 'w', label: 'W', note: 'C#4', frequency: 277.18, isSharp: true },
+  { key: 's', label: 'S', note: 'D4', frequency: 293.66 },
+  { key: 'e', label: 'E', note: 'D#4', frequency: 311.13, isSharp: true },
+  { key: 'd', label: 'D', note: 'E4', frequency: 329.63 },
+  { key: 'f', label: 'F', note: 'F4', frequency: 349.23 },
+  { key: 't', label: 'T', note: 'F#4', frequency: 369.99, isSharp: true },
+  { key: 'g', label: 'G', note: 'G4', frequency: 392 },
+  { key: 'y', label: 'Y', note: 'G#4', frequency: 415.3, isSharp: true },
+  { key: 'h', label: 'H', note: 'A4', frequency: 440 },
+  { key: 'u', label: 'U', note: 'A#4', frequency: 466.16, isSharp: true },
+  { key: 'j', label: 'J', note: 'B4', frequency: 493.88 },
+  { key: 'k', label: 'K', note: 'C5', frequency: 523.25 },
+  { key: 'o', label: 'O', note: 'C#5', frequency: 554.37, isSharp: true },
+  { key: 'l', label: 'L', note: 'D5', frequency: 587.33 },
+];
+
 const createEmptyPattern = (steps: number): Pattern => {
   const base: Record<string, boolean[]> = {};
   instruments.forEach(({ id }) => {
@@ -202,15 +220,22 @@ const App: React.FC = () => {
   const [shareLink, setShareLink] = useState('');
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
+  const [isSynthEnabled, setIsSynthEnabled] = useState(false);
+  const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+  const synthVoicesRef = useRef<Map<string, { osc: OscillatorNode; gain: GainNode; filter: BiquadFilterNode }>>(
+    new Map(),
+  );
 
   const { ctx, ensureContext } = useAudioContext();
   const noiseBufferRef = useRef<AudioBuffer | null>(null);
   const shareTimeoutRef = useRef<number | null>(null);
   const idleCallbackRef = useRef<number | null>(null);
+  const shareSectionRef = useRef<HTMLElement | null>(null);
 
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
   const stepsRef = useRef(steps);
+  const pressedKeysRef = useRef(pressedKeys);
 
   useEffect(() => {
     patternRef.current = pattern;
@@ -260,6 +285,10 @@ const App: React.FC = () => {
     stepsRef.current = steps;
     setCurrentStep((prev) => prev % steps);
   }, [steps]);
+
+  useEffect(() => {
+    pressedKeysRef.current = pressedKeys;
+  }, [pressedKeys]);
 
   useEffect(() => {
     if (!ctx) return;
@@ -351,6 +380,132 @@ const App: React.FC = () => {
     setQrCodeData(dataUrl);
   };
 
+  const handleScrollToShare = () => {
+    shareSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const handleSynthPadPress = async (key: string, frequency: number) => {
+    await startSynthVoice(key, frequency);
+    highlightKey(key);
+  };
+
+  const handleSynthPadRelease = (key: string) => {
+    stopSynthVoice(key);
+    releaseKey(key);
+  };
+
+  const playTechnoTone = (
+    audioContext: AudioContext,
+    frequency: number,
+  ): { osc: OscillatorNode; gain: GainNode; filter: BiquadFilterNode } => {
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const sub = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+
+    osc.type = 'sawtooth';
+    sub.type = 'square';
+    osc.frequency.setValueAtTime(frequency, now);
+    sub.frequency.setValueAtTime(frequency / 2, now);
+    osc.detune.setValueAtTime(6, now);
+    sub.detune.setValueAtTime(-6, now);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(900, now);
+    filter.Q.value = 10;
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.72, now + 0.03);
+
+    osc.connect(filter).connect(gain).connect(audioContext.destination);
+    sub.connect(filter);
+    osc.start(now);
+    sub.start(now);
+
+    return { osc, gain, filter };
+  };
+
+  const startSynthVoice = async (key: string, frequency: number) => {
+    if (synthVoicesRef.current.has(key)) return;
+    const audioContext = ensureContext();
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+
+    const voice = playTechnoTone(audioContext, frequency);
+    synthVoicesRef.current.set(key, voice);
+  };
+
+  const stopSynthVoice = (key: string) => {
+    const voice = synthVoicesRef.current.get(key);
+    if (!voice) return;
+    const audioContext = ensureContext();
+    const now = audioContext.currentTime;
+    const currentGain = voice.gain.gain.value;
+    voice.gain.gain.cancelScheduledValues(now);
+    voice.gain.gain.setValueAtTime(currentGain, now);
+    voice.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+    voice.osc.stop(now + 0.25);
+    synthVoicesRef.current.delete(key);
+  };
+
+  const highlightKey = (key: string) => {
+    setPressedKeys((prev) => {
+      if (prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const releaseKey = (key: string) => {
+    setPressedKeys((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
+
+  const stopAllSynthVoices = () => {
+    synthVoicesRef.current.forEach((_, key) => stopSynthVoice(key));
+  };
+
+  const handleSynthKeyDown = async (event: KeyboardEvent) => {
+    const key = event.key.toLowerCase();
+    const match = SYNTH_KEYS.find((synthKey) => synthKey.key === key);
+    if (!match) return;
+    event.preventDefault();
+    await startSynthVoice(key, match.frequency);
+    highlightKey(key);
+  };
+
+  const handleSynthKeyUp = (event: KeyboardEvent) => {
+    const key = event.key.toLowerCase();
+    if (!pressedKeysRef.current.has(key)) return;
+    stopSynthVoice(key);
+    releaseKey(key);
+  };
+
+  useEffect(() => {
+    if (!isSynthEnabled) {
+      stopAllSynthVoices();
+      setPressedKeys(new Set());
+      return undefined;
+    }
+    const downListener = (event: KeyboardEvent) => {
+      handleSynthKeyDown(event).catch((err) => console.error(err));
+    };
+    window.addEventListener('keydown', downListener);
+    window.addEventListener('keyup', handleSynthKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', downListener);
+      window.removeEventListener('keyup', handleSynthKeyUp);
+    };
+  }, [isSynthEnabled]);
+
   const presetButtons = useMemo(
     () => [
       {
@@ -389,11 +544,59 @@ const App: React.FC = () => {
 
   return (
     <div className="app">
+      <div className="floating-controls" aria-label="常時表示の操作パネル">
+        <div className="floating-row">
+          <button className={`primary play-toggle ${isPlaying ? 'is-playing' : ''}`} onClick={handlePlayToggle}>
+            <span className="icon" aria-hidden="true">{isPlaying ? '⏸' : '▶'}</span>
+            <span className="label">{isPlaying ? '一時停止' : '再生'}</span>
+          </button>
+          <div className="floating-step-toggle" aria-label="ステップ数の切り替え">
+            {STEP_OPTIONS.map((option) => (
+              <button
+                key={option}
+                className={`secondary compact ${steps === option ? 'active' : ''}`}
+                onClick={() => handleStepsChange(option)}
+              >
+                <span className="compact-label">{option}</span>
+                <span className="full-label">{option} ステップ</span>
+              </button>
+            ))}
+          </div>
+          <label className="synth-toggle floating" aria-label="シンセサイザーモード">
+            <input
+              type="checkbox"
+              checked={isSynthEnabled}
+              onChange={(e) => setIsSynthEnabled(e.target.checked)}
+            />
+            <span className="slider" aria-hidden="true" />
+            <span className="toggle-label">シンセ {isSynthEnabled ? 'ON' : 'OFF'}</span>
+          </label>
+        </div>
+        <div className="floating-row">
+          <div className="floating-bpm" aria-label="テンポ設定">
+            <label htmlFor="floating-bpm">テンポ</label>
+            <input
+              id="floating-bpm"
+              type="range"
+              min={60}
+              max={160}
+              value={bpm}
+              onChange={(e) => setBpm(Number(e.target.value))}
+            />
+            <span>{bpm} BPM</span>
+          </div>
+          <button className="icon-button share" aria-label="共有セクションへ" onClick={handleScrollToShare}>
+            <span aria-hidden="true">🔗</span>
+            <span className="label">共有</span>
+          </button>
+        </div>
+      </div>
+
       <header className="hero">
         <div>
           <p className="eyebrow">モバイル特化・URLだけで共有</p>
-          <h1>ポケットドラムマシン</h1>
-          <p className="sub">ステップをタップしてビートを作成。ワンタップで再生・共有。</p>
+          <h1>url4b2</h1>
+          <p className="sub">ステップをタップしてビートを作成。ワンタップで再生・共有。シンセでライブ演奏も可能。</p>
         </div>
         <div className="hero-actions">
           <button className="primary" onClick={handlePlayToggle}>
@@ -404,11 +607,11 @@ const App: React.FC = () => {
       </header>
 
       <section className="controls">
-        <div className="control">
-          <label htmlFor="bpm">テンポ</label>
+        <div className="control tempo-control">
+          <label htmlFor="main-bpm">テンポ</label>
           <div className="bpm-control">
             <input
-              id="bpm"
+              id="main-bpm"
               type="range"
               min={60}
               max={160}
@@ -432,6 +635,19 @@ const App: React.FC = () => {
             ))}
           </div>
         </div>
+        <div className="control synth-inline">
+          <label htmlFor="main-synth-toggle-input">シンセサイザー</label>
+          <label className="synth-toggle" aria-label="シンセサイザーモード" htmlFor="main-synth-toggle-input">
+            <input
+              id="main-synth-toggle-input"
+              type="checkbox"
+              checked={isSynthEnabled}
+              onChange={(e) => setIsSynthEnabled(e.target.checked)}
+            />
+            <span className="slider" aria-hidden="true" />
+            <span className="toggle-label">シンセ {isSynthEnabled ? 'ON' : 'OFF'}</span>
+          </label>
+        </div>
         <div className="control presets">
           {presetButtons.map((preset) => (
             <button key={preset.label} className="secondary" onClick={() => setPattern(preset.pattern)}>
@@ -439,6 +655,37 @@ const App: React.FC = () => {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="synth">
+        <div className="synth-header">
+          <div>
+            <p className="eyebrow">リアルタイム演奏</p>
+            <h2>シンセサイザー</h2>
+            <p className="sub">シンセをオンにすると、ビートに合わせてキーボードで演奏できます。</p>
+          </div>
+          <div className="synth-status">シンセ {isSynthEnabled ? 'ON' : 'OFF'}</div>
+        </div>
+
+        {isSynthEnabled && (
+          <>
+            <div className="synth-keys" aria-label="キーボード対応鍵盤">
+              {SYNTH_KEYS.map((keyInfo) => (
+                <button
+                  key={keyInfo.key}
+                  className={`synth-key ${keyInfo.isSharp ? 'sharp' : 'natural'} ${pressedKeys.has(keyInfo.key) ? 'active' : ''}`}
+                  onMouseDown={() => handleSynthPadPress(keyInfo.key, keyInfo.frequency)}
+                  onMouseUp={() => handleSynthPadRelease(keyInfo.key)}
+                  onMouseLeave={() => handleSynthPadRelease(keyInfo.key)}
+                >
+                  <span className="synth-key-label">{keyInfo.label}</span>
+                  <span className="synth-key-note">{keyInfo.note}</span>
+                </button>
+              ))}
+            </div>
+            <p className="synth-hint">A〜Lキーで演奏できます。ビートを再生しながらメロディを重ねてください。</p>
+          </>
+        )}
       </section>
 
       <section className="grid">
@@ -463,7 +710,7 @@ const App: React.FC = () => {
         ))}
       </section>
 
-      <section className="share">
+      <section className="share" ref={shareSectionRef}>
         <div>
           <p className="eyebrow">URLパラメーターで共有</p>
           <h2>リンクを作成してシェア</h2>
