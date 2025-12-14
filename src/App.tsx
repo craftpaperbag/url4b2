@@ -230,6 +230,7 @@ const App: React.FC = () => {
   const noiseBufferRef = useRef<AudioBuffer | null>(null);
   const shareTimeoutRef = useRef<number | null>(null);
   const idleCallbackRef = useRef<number | null>(null);
+  const shareSectionRef = useRef<HTMLElement | null>(null);
 
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
@@ -377,6 +378,10 @@ const App: React.FC = () => {
     if (!shareLink) return;
     const dataUrl = await QRCode.toDataURL(shareLink, { margin: 1, scale: 6 });
     setQrCodeData(dataUrl);
+  };
+
+  const handleScrollToShare = () => {
+    shareSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleSynthPadPress = async (key: string, frequency: number) => {
@@ -540,41 +545,51 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <div className="floating-controls" aria-label="常時表示の操作パネル">
-        <button className="primary" onClick={handlePlayToggle}>
-          {isPlaying ? '一時停止' : '再生'}
-        </button>
-        <div className="floating-step-toggle" aria-label="ステップ数の切り替え">
-          {STEP_OPTIONS.map((option) => (
-            <button
-              key={option}
-              className={`secondary ${steps === option ? 'active' : ''}`}
-              onClick={() => handleStepsChange(option)}
-            >
-              {option} ステップ
-            </button>
-          ))}
+        <div className="floating-row">
+          <button className={`primary play-toggle ${isPlaying ? 'is-playing' : ''}`} onClick={handlePlayToggle}>
+            <span className="icon" aria-hidden="true">{isPlaying ? '⏸' : '▶'}</span>
+            <span className="label">{isPlaying ? '一時停止' : '再生'}</span>
+          </button>
+          <div className="floating-step-toggle" aria-label="ステップ数の切り替え">
+            {STEP_OPTIONS.map((option) => (
+              <button
+                key={option}
+                className={`secondary compact ${steps === option ? 'active' : ''}`}
+                onClick={() => handleStepsChange(option)}
+              >
+                <span className="compact-label">{option}</span>
+                <span className="full-label">{option} ステップ</span>
+              </button>
+            ))}
+          </div>
+          <label className="synth-toggle floating" aria-label="シンセサイザーモード">
+            <input
+              type="checkbox"
+              checked={isSynthEnabled}
+              onChange={(e) => setIsSynthEnabled(e.target.checked)}
+            />
+            <span className="slider" aria-hidden="true" />
+            <span className="toggle-label">シンセ {isSynthEnabled ? 'ON' : 'OFF'}</span>
+          </label>
         </div>
-        <div className="floating-bpm" aria-label="テンポ設定">
-          <label htmlFor="floating-bpm">テンポ</label>
-          <input
-            id="floating-bpm"
-            type="range"
-            min={60}
-            max={160}
-            value={bpm}
-            onChange={(e) => setBpm(Number(e.target.value))}
-          />
-          <span>{bpm} BPM</span>
+        <div className="floating-row">
+          <div className="floating-bpm" aria-label="テンポ設定">
+            <label htmlFor="floating-bpm">テンポ</label>
+            <input
+              id="floating-bpm"
+              type="range"
+              min={60}
+              max={160}
+              value={bpm}
+              onChange={(e) => setBpm(Number(e.target.value))}
+            />
+            <span>{bpm} BPM</span>
+          </div>
+          <button className="icon-button share" aria-label="共有セクションへ" onClick={handleScrollToShare}>
+            <span aria-hidden="true">🔗</span>
+            <span className="label">共有</span>
+          </button>
         </div>
-        <label className="synth-toggle floating" aria-label="シンセサイザーモード">
-          <input
-            type="checkbox"
-            checked={isSynthEnabled}
-            onChange={(e) => setIsSynthEnabled(e.target.checked)}
-          />
-          <span className="slider" aria-hidden="true" />
-          <span className="toggle-label">シンセ {isSynthEnabled ? 'ON' : 'OFF'}</span>
-        </label>
       </div>
 
       <header className="hero">
@@ -592,6 +607,20 @@ const App: React.FC = () => {
       </header>
 
       <section className="controls">
+        <div className="control tempo-control">
+          <label htmlFor="main-bpm">テンポ</label>
+          <div className="bpm-control">
+            <input
+              id="main-bpm"
+              type="range"
+              min={60}
+              max={160}
+              value={bpm}
+              onChange={(e) => setBpm(Number(e.target.value))}
+            />
+            <span>{bpm} BPM</span>
+          </div>
+        </div>
         <div className="control">
           <label>シーケンサ長</label>
           <div className="step-length-toggle">
@@ -605,6 +634,19 @@ const App: React.FC = () => {
               </button>
             ))}
           </div>
+        </div>
+        <div className="control synth-inline">
+          <label htmlFor="main-synth-toggle-input">シンセサイザー</label>
+          <label className="synth-toggle" aria-label="シンセサイザーモード" htmlFor="main-synth-toggle-input">
+            <input
+              id="main-synth-toggle-input"
+              type="checkbox"
+              checked={isSynthEnabled}
+              onChange={(e) => setIsSynthEnabled(e.target.checked)}
+            />
+            <span className="slider" aria-hidden="true" />
+            <span className="toggle-label">シンセ {isSynthEnabled ? 'ON' : 'OFF'}</span>
+          </label>
         </div>
         <div className="control presets">
           {presetButtons.map((preset) => (
@@ -668,7 +710,7 @@ const App: React.FC = () => {
         ))}
       </section>
 
-      <section className="share">
+      <section className="share" ref={shareSectionRef}>
         <div>
           <p className="eyebrow">URLパラメーターで共有</p>
           <h2>リンクを作成してシェア</h2>
