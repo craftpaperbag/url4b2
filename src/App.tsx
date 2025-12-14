@@ -1,16 +1,34 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 
-declare global {
-  interface Window {
-    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
-    cancelIdleCallback?: (handle: number) => void;
-  }
-}
-
 const DEFAULT_STEPS = 16;
 const STEP_INTERVALS_PER_BEAT = 4; // 16th notes
 const STEP_OPTIONS = [16, 8] as const;
+
+const scheduleIdleCallback = (callback: IdleRequestCallback, options?: IdleRequestOptions): number => {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window && window.requestIdleCallback) {
+    return window.requestIdleCallback(callback, options);
+  }
+
+  const timeout = options?.timeout ?? 1;
+  return window.setTimeout(
+    () =>
+      callback({
+        didTimeout: false,
+        timeRemaining: () => 0,
+      } as IdleDeadline),
+    timeout,
+  );
+};
+
+const cancelIdleCallback = (handle: number) => {
+  if (typeof window !== 'undefined' && 'cancelIdleCallback' in window && window.cancelIdleCallback) {
+    window.cancelIdleCallback(handle);
+    return;
+  }
+
+  window.clearTimeout(handle);
+};
 
 const instruments = [
   { id: 'kick', label: 'キック', accent: '#f97316' },
@@ -200,11 +218,7 @@ const App: React.FC = () => {
       window.clearTimeout(shareTimeoutRef.current);
     }
     if (idleCallbackRef.current !== null) {
-      if (window.cancelIdleCallback) {
-        window.cancelIdleCallback(idleCallbackRef.current);
-      } else {
-        window.clearTimeout(idleCallbackRef.current);
-      }
+      cancelIdleCallback(idleCallbackRef.current);
       idleCallbackRef.current = null;
     }
 
@@ -221,11 +235,7 @@ const App: React.FC = () => {
         idleCallbackRef.current = null;
       };
 
-      if (window.requestIdleCallback) {
-        idleCallbackRef.current = window.requestIdleCallback(generateLink, { timeout: 300 });
-      } else {
-        generateLink();
-      }
+      idleCallbackRef.current = scheduleIdleCallback(generateLink, { timeout: 300 });
 
       shareTimeoutRef.current = null;
     }, 150);
@@ -236,11 +246,7 @@ const App: React.FC = () => {
         shareTimeoutRef.current = null;
       }
       if (idleCallbackRef.current !== null) {
-        if (window.cancelIdleCallback) {
-          window.cancelIdleCallback(idleCallbackRef.current);
-        } else {
-          window.clearTimeout(idleCallbackRef.current);
-        }
+        cancelIdleCallback(idleCallbackRef.current);
         idleCallbackRef.current = null;
       }
     };
