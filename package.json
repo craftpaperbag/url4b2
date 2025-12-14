@@ -1,28 +1,24 @@
 {
-  "name": "url4b2",
+  "name": "beat-share-app",
   "version": "1.0.0",
   "private": true,
-  "description": "Mobile-first drum pattern sequencer that shares grooves via URL.",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "echo 'No lint configured'"
   },
   "dependencies": {
-    "next": "15.1.6",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/node": "22.10.1",
-    "@types/react": "18.3.18",
-    "@types/react-dom": "18.3.0",
-    "autoprefixer": "10.4.20",
-    "eslint": "9.17.0",
-    "eslint-config-next": "15.1.6",
-    "postcss": "8.4.49",
-    "tailwindcss": "3.4.15",
-    "typescript": "5.7.2"
+    "@vitejs/plugin-react": "^4.3.2",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.3"
   }
 }
