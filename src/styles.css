@@ -29,6 +29,7 @@ body {
   margin: -16px -16px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
+  flex-wrap: wrap;
 }
 
 .floating-step-toggle {
@@ -36,6 +37,25 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.floating-bpm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
+.floating-bpm label {
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.floating-bpm input[type='range'] {
+  width: 140px;
 }
 
 .app {
@@ -303,6 +323,13 @@ button {
   user-select: none;
 }
 
+.synth-toggle.floating {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 8px 10px;
+  border-radius: 12px;
+}
+
 .synth-toggle input {
   display: none;
 }
@@ -344,24 +371,6 @@ button {
   letter-spacing: 0.03em;
 }
 
-.synth-display {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
-  padding: 10px;
-  display: grid;
-  place-items: center;
-  position: sticky;
-  top: 62px;
-  z-index: 10;
-}
-
-.synth-display img {
-  width: min(680px, 100%);
-  height: auto;
-  display: block;
-  border-radius: 12px;
-}
 
 .synth-keys {
   display: grid;
@@ -370,9 +379,9 @@ button {
 }
 
 .synth-key {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
   padding: 12px 10px;
   color: #e2e8f0;
   display: flex;
@@ -380,6 +389,17 @@ button {
   justify-content: space-between;
   gap: 8px;
   transition: all 0.15s ease;
+}
+
+.synth-key.natural {
+  height: 80px;
+}
+
+.synth-key.sharp {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.6));
+  border-color: rgba(0, 0, 0, 0.6);
+  height: 62px;
+  color: #f8fafc;
 }
 
 .synth-key.active {
@@ -402,6 +422,15 @@ button {
   margin: 0;
   color: #cbd5e1;
   font-size: 14px;
+}
+
+.synth-status {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 @media (min-width: 720px) {

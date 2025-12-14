@@ -36,21 +36,24 @@ const instruments = [
   { id: 'hihat', label: 'ハイハット', accent: '#22c55e' },
 ] as const;
 
-const SYNTH_IMAGE =
-  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzIwIiBoZWlnaHQ9IjI2MCIgdmlld0JveD0iMCAwIDcyMCAyNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjcyMCIgaGVpZ2h0PSIyNjAiIGZpbGw9IiMwMDA5MTYiIHJ4PSIyMCIvPjxyZWN0IHg9IjIwIiB5PSIyMCIgd2lkdGg9IjY4MCIgaGVpZ2h0PSIyMjAiIGZpbGw9IiMwZjE3MmEiIHJ4PSIxNCIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjIiLz48cmVjdCB4PSIzMCIgeT0iMzAiIHdpZHRoPSI2NjAiIGhlaWdodD0iNDAiIGZpbGw9IiMwMGFlZjMiIHJ4PSI4Ii8+PHJlY3QgeD0iMzAiIHk9IjgwIiB3aWR0aD0iNjYwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iIzExMjMzYSIgcng9IjEwIi8+PHJlY3QgeD0iMzAiIHk9IjE5MCIgd2lkdGg9IjY2MCIgaGVpZ2h0PSI0MCIgZmlsbD0iIzAwYWVmMyIgcng9IjgiLz48ZyBmaWxsPSIjZWVlIj48cmVjdCB4PSI2MCIgeT0iMTA0IiB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHJ4PSI2Ii8+PHJlY3QgeD0iMTEwIiB5PSIxMDQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgcng9IjYiLz48cmVjdCB4PSIxNjAiIHk9IjEwNCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjYwIiByeD0iNiIvPjxyZWN0IHg9IjIxMCIgeT0iMTA0IiB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHJ4PSI2Ii8+PHJlY3QgeD0iMjYwIiB5PSIxMDQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgcng9IjYiLz48cmVjdCB4PSIzMTAiIHk9IjEwNCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjYwIiByeD0iNiIvPjxyZWN0IHg9IjM2MCIgeT0iMTA0IiB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHJ4PSI2Ii8+PHJlY3QgeD0iNDEwIiB5PSIxMDQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgcng9IjYiLz48cmVjdCB4PSI0NjAiIHk9IjEwNCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjYwIiByeD0iNiIvPjxyZWN0IHg9IjUxMCIgeT0iMTA0IiB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHJ4PSI2Ii8+PHJlY3QgeD0iNTYwIiB5PSIxMDQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI2MCIgcng9IjYiLz48cmVjdCB4PSI2MTAiIHk9IjEwNCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjYwIiByeD0iNiIvPjxyZWN0IHg9IjY2MCIgeT0iMTA0IiB3aWR0aD0iNDAiIGhlaWdodD0iNjAiIHJ4PSI2Ii8+PC9nPjxjaXJjbGUgY3g9IjY0MCIgY3k9IjYwIiByPSIxMiIgZmlsbD0iI2VlZSIgZmlsbC1vcGFjaXR5PSIwLjciLz48Y2lyY2xlIGN4PSI2ODAiIGN5PSI2MCIgcj0iMTIiIGZpbGw9IiNlZWUiIGZpbGwtb3BhY2l0eT0iMC43Ii8+PHJlY3QgeD0iNDAiIHk9IjIyMCIgd2lkdGg9IjY0MCIgaGVpZ2h0PSI2IiBmaWxsPSIjMjJjNTVlIi8+PHJlY3QgeD0iMzAiIHk9IjEzMCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDBhZWYzIi8+PHJlY3QgeD0iMzAiIHk9IjE1MCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDBhZWYzIi8+PHJlY3QgeD0iMzAiIHk9IjE3MCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDBhZWYzIi8+PHJlY3QgeD0iMzAiIHk9IjE5MCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjMDBhZWYzIi8+PC9zdmc+';
-
 type InstrumentId = (typeof instruments)[number]['id'];
 type Pattern = Record<InstrumentId, boolean[]>;
 
 const SYNTH_KEYS = [
   { key: 'a', label: 'A', note: 'C4', frequency: 261.63 },
+  { key: 'w', label: 'W', note: 'C#4', frequency: 277.18, isSharp: true },
   { key: 's', label: 'S', note: 'D4', frequency: 293.66 },
+  { key: 'e', label: 'E', note: 'D#4', frequency: 311.13, isSharp: true },
   { key: 'd', label: 'D', note: 'E4', frequency: 329.63 },
   { key: 'f', label: 'F', note: 'F4', frequency: 349.23 },
+  { key: 't', label: 'T', note: 'F#4', frequency: 369.99, isSharp: true },
   { key: 'g', label: 'G', note: 'G4', frequency: 392 },
+  { key: 'y', label: 'Y', note: 'G#4', frequency: 415.3, isSharp: true },
   { key: 'h', label: 'H', note: 'A4', frequency: 440 },
+  { key: 'u', label: 'U', note: 'A#4', frequency: 466.16, isSharp: true },
   { key: 'j', label: 'J', note: 'B4', frequency: 493.88 },
   { key: 'k', label: 'K', note: 'C5', frequency: 523.25 },
+  { key: 'o', label: 'O', note: 'C#5', frequency: 554.37, isSharp: true },
   { key: 'l', label: 'L', note: 'D5', frequency: 587.33 },
 ];
 
@@ -219,6 +222,9 @@ const App: React.FC = () => {
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
   const [isSynthEnabled, setIsSynthEnabled] = useState(false);
   const [pressedKeys, setPressedKeys] = useState<Set<string>>(new Set());
+  const synthVoicesRef = useRef<Map<string, { osc: OscillatorNode; gain: GainNode; filter: BiquadFilterNode }>>(
+    new Map(),
+  );
 
   const { ctx, ensureContext } = useAudioContext();
   const noiseBufferRef = useRef<AudioBuffer | null>(null);
@@ -374,34 +380,69 @@ const App: React.FC = () => {
   };
 
   const handleSynthPadPress = async (key: string, frequency: number) => {
+    await startSynthVoice(key, frequency);
     highlightKey(key);
-    await playSynthNote(frequency);
-    window.setTimeout(() => releaseKey(key), 140);
   };
 
-  const playSynthNote = async (frequency: number) => {
+  const handleSynthPadRelease = (key: string) => {
+    stopSynthVoice(key);
+    releaseKey(key);
+  };
+
+  const playTechnoTone = (
+    audioContext: AudioContext,
+    frequency: number,
+  ): { osc: OscillatorNode; gain: GainNode; filter: BiquadFilterNode } => {
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const sub = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const filter = audioContext.createBiquadFilter();
+
+    osc.type = 'sawtooth';
+    sub.type = 'square';
+    osc.frequency.setValueAtTime(frequency, now);
+    sub.frequency.setValueAtTime(frequency / 2, now);
+    osc.detune.setValueAtTime(6, now);
+    sub.detune.setValueAtTime(-6, now);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(900, now);
+    filter.Q.value = 10;
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.72, now + 0.03);
+
+    osc.connect(filter).connect(gain).connect(audioContext.destination);
+    sub.connect(filter);
+    osc.start(now);
+    sub.start(now);
+
+    return { osc, gain, filter };
+  };
+
+  const startSynthVoice = async (key: string, frequency: number) => {
+    if (synthVoicesRef.current.has(key)) return;
     const audioContext = ensureContext();
     if (audioContext.state === 'suspended') {
       await audioContext.resume();
     }
 
+    const voice = playTechnoTone(audioContext, frequency);
+    synthVoicesRef.current.set(key, voice);
+  };
+
+  const stopSynthVoice = (key: string) => {
+    const voice = synthVoicesRef.current.get(key);
+    if (!voice) return;
+    const audioContext = ensureContext();
     const now = audioContext.currentTime;
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    const filter = audioContext.createBiquadFilter();
-
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(frequency, now);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1800, now);
-
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.65, now + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
-
-    osc.connect(filter).connect(gain).connect(audioContext.destination);
-    osc.start(now);
-    osc.stop(now + 0.9);
+    const currentGain = voice.gain.gain.value;
+    voice.gain.gain.cancelScheduledValues(now);
+    voice.gain.gain.setValueAtTime(currentGain, now);
+    voice.gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+    voice.osc.stop(now + 0.25);
+    synthVoicesRef.current.delete(key);
   };
 
   const highlightKey = (key: string) => {
@@ -422,23 +463,32 @@ const App: React.FC = () => {
     });
   };
 
+  const stopAllSynthVoices = () => {
+    synthVoicesRef.current.forEach((_, key) => stopSynthVoice(key));
+  };
+
   const handleSynthKeyDown = async (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
     const match = SYNTH_KEYS.find((synthKey) => synthKey.key === key);
     if (!match) return;
     event.preventDefault();
+    await startSynthVoice(key, match.frequency);
     highlightKey(key);
-    await playSynthNote(match.frequency);
   };
 
   const handleSynthKeyUp = (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
     if (!pressedKeysRef.current.has(key)) return;
+    stopSynthVoice(key);
     releaseKey(key);
   };
 
   useEffect(() => {
-    if (!isSynthEnabled) return undefined;
+    if (!isSynthEnabled) {
+      stopAllSynthVoices();
+      setPressedKeys(new Set());
+      return undefined;
+    }
     const downListener = (event: KeyboardEvent) => {
       handleSynthKeyDown(event).catch((err) => console.error(err));
     };
@@ -504,6 +554,27 @@ const App: React.FC = () => {
             </button>
           ))}
         </div>
+        <div className="floating-bpm" aria-label="テンポ設定">
+          <label htmlFor="floating-bpm">テンポ</label>
+          <input
+            id="floating-bpm"
+            type="range"
+            min={60}
+            max={160}
+            value={bpm}
+            onChange={(e) => setBpm(Number(e.target.value))}
+          />
+          <span>{bpm} BPM</span>
+        </div>
+        <label className="synth-toggle floating" aria-label="シンセサイザーモード">
+          <input
+            type="checkbox"
+            checked={isSynthEnabled}
+            onChange={(e) => setIsSynthEnabled(e.target.checked)}
+          />
+          <span className="slider" aria-hidden="true" />
+          <span className="toggle-label">シンセ {isSynthEnabled ? 'ON' : 'OFF'}</span>
+        </label>
       </div>
 
       <header className="hero">
@@ -521,20 +592,6 @@ const App: React.FC = () => {
       </header>
 
       <section className="controls">
-        <div className="control">
-          <label htmlFor="bpm">テンポ</label>
-          <div className="bpm-control">
-            <input
-              id="bpm"
-              type="range"
-              min={60}
-              max={160}
-              value={bpm}
-              onChange={(e) => setBpm(Number(e.target.value))}
-            />
-            <span>{bpm} BPM</span>
-          </div>
-        </div>
         <div className="control">
           <label>シーケンサ長</label>
           <div className="step-length-toggle">
@@ -565,30 +622,19 @@ const App: React.FC = () => {
             <h2>シンセサイザー</h2>
             <p className="sub">シンセをオンにすると、ビートに合わせてキーボードで演奏できます。</p>
           </div>
-          <label className="synth-toggle">
-            <input
-              type="checkbox"
-              checked={isSynthEnabled}
-              onChange={(e) => setIsSynthEnabled(e.target.checked)}
-            />
-            <span className="slider" aria-hidden="true" />
-            <span className="toggle-label">{isSynthEnabled ? 'ON' : 'OFF'}</span>
-          </label>
+          <div className="synth-status">シンセ {isSynthEnabled ? 'ON' : 'OFF'}</div>
         </div>
 
         {isSynthEnabled && (
           <>
-            <div className="synth-display" aria-label="シンセサイザーのイメージ">
-              <img src={SYNTH_IMAGE} alt="シンセサイザーのイメージ" />
-            </div>
             <div className="synth-keys" aria-label="キーボード対応鍵盤">
               {SYNTH_KEYS.map((keyInfo) => (
                 <button
                   key={keyInfo.key}
-                  className={`synth-key ${pressedKeys.has(keyInfo.key) ? 'active' : ''}`}
+                  className={`synth-key ${keyInfo.isSharp ? 'sharp' : 'natural'} ${pressedKeys.has(keyInfo.key) ? 'active' : ''}`}
                   onMouseDown={() => handleSynthPadPress(keyInfo.key, keyInfo.frequency)}
-                  onMouseUp={() => releaseKey(keyInfo.key)}
-                  onMouseLeave={() => releaseKey(keyInfo.key)}
+                  onMouseUp={() => handleSynthPadRelease(keyInfo.key)}
+                  onMouseLeave={() => handleSynthPadRelease(keyInfo.key)}
                 >
                   <span className="synth-key-label">{keyInfo.label}</span>
                   <span className="synth-key-note">{keyInfo.note}</span>
