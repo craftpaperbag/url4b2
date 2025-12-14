@@ -1,0 +1,247 @@
+:root {
+  color-scheme: light;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15), transparent 25%),
+    radial-gradient(circle at 90% 10%, rgba(34, 197, 94, 0.18), transparent 25%),
+    #0f172a;
+}
+
+.app {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.hero {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(34, 197, 94, 0.18));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  backdrop-filter: blur(8px);
+}
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  margin: 0 0 6px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(24px, 4vw, 32px);
+}
+
+.sub {
+  margin: 6px 0 0;
+  color: #cbd5e1;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.primary {
+  background: #22c55e;
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 10px 16px;
+  min-width: 120px;
+  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.35);
+}
+
+.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.ghost {
+  background: transparent;
+  color: #e2e8f0;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.controls {
+  margin-top: 20px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+
+.control {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.bpm-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bpm-control input[type='range'] {
+  flex: 1;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.grid {
+  margin-top: 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  align-items: center;
+  padding: 12px;
+  gap: 10px;
+}
+
+.row + .row {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.label {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.step {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s ease;
+}
+
+.step .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  opacity: 0.35;
+}
+
+.step.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.step.active .dot {
+  opacity: 1;
+}
+
+.step.playing {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.share {
+  margin-top: 22px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.share-link {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.qr {
+  display: grid;
+  place-items: center;
+  padding: 10px;
+}
+
+.qr img {
+  width: min(220px, 60vw);
+  height: auto;
+  border-radius: 12px;
+  background: white;
+  padding: 10px;
+}
+
+@media (min-width: 720px) {
+  .controls {
+    grid-template-columns: 1.2fr 1fr;
+  }
+
+  .steps {
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+
+  .label {
+    text-align: left;
+  }
+
+  .steps {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+}
