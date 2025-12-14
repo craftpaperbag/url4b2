@@ -65,7 +65,11 @@ const fromBase64Url = (encoded: string): Uint8Array => {
     .replace(/_/g, '/')
     .padEnd(Math.ceil(encoded.length / 4) * 4, '=');
   const binary = atob(base64);
-  return new Uint8Array([...binary].map((char) => char.charCodeAt(0)));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 };
 
 export const encodePattern = (pattern: PatternGrid, steps = DEFAULT_STEPS): string => {
