@@ -95,14 +95,26 @@ const createNoiseBuffer = (context: AudioContext) => {
 const playKick = (context: AudioContext, time: number) => {
   const osc = context.createOscillator();
   const gain = context.createGain();
+  const clickOsc = context.createOscillator();
+  const clickGain = context.createGain();
+
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(120, time);
-  osc.frequency.exponentialRampToValueAtTime(50, time + 0.1);
-  gain.gain.setValueAtTime(1, time);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+  osc.frequency.setValueAtTime(180, time);
+  osc.frequency.exponentialRampToValueAtTime(45, time + 0.12);
+  gain.gain.setValueAtTime(1.1, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
   osc.connect(gain).connect(context.destination);
+
+  clickOsc.type = 'square';
+  clickOsc.frequency.setValueAtTime(1000, time);
+  clickGain.gain.setValueAtTime(0.35, time);
+  clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+  clickOsc.connect(clickGain).connect(context.destination);
+
   osc.start(time);
   osc.stop(time + 0.5);
+  clickOsc.start(time);
+  clickOsc.stop(time + 0.08);
 };
 
 const playSnare = (context: AudioContext, time: number, noiseBuffer: AudioBuffer) => {
@@ -151,21 +163,39 @@ const App: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [shareLink, setShareLink] = useState('');
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
 
   const { ctx, ensureContext } = useAudioContext();
   const noiseBufferRef = useRef<AudioBuffer | null>(null);
+  const shareTimeoutRef = useRef<number | null>(null);
 
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
 
   useEffect(() => {
     patternRef.current = pattern;
-    const url = new URL(window.location.href);
-    const encoded = encodePattern(pattern);
-    url.searchParams.set('p', encoded);
-    window.history.replaceState(null, '', url.toString());
-    setShareLink(url.toString());
+    if (shareTimeoutRef.current) {
+      window.clearTimeout(shareTimeoutRef.current);
+    }
+
+    setIsGeneratingLink(true);
+    shareTimeoutRef.current = window.setTimeout(() => {
+      const url = new URL(window.location.href);
+      const encoded = encodePattern(pattern);
+      url.searchParams.set('p', encoded);
+      window.history.replaceState(null, '', url.toString());
+      setShareLink(url.toString());
+      setIsGeneratingLink(false);
+      shareTimeoutRef.current = null;
+    }, 200);
+
+    return () => {
+      if (shareTimeoutRef.current) {
+        window.clearTimeout(shareTimeoutRef.current);
+        shareTimeoutRef.current = null;
+      }
+    };
   }, [pattern]);
 
   useEffect(() => {
@@ -343,9 +373,10 @@ const App: React.FC = () => {
             QRコードを表示
           </button>
         </div>
-        {shareLink && (
+        {(shareLink || isGeneratingLink) && (
           <div className="share-link">
-            <code>{shareLink}</code>
+            <code>{shareLink || 'リンクを生成しています…'}</code>
+            {isGeneratingLink && <span className="loader" aria-label="リンク生成中" />}
           </div>
         )}
         {qrCodeData && (
