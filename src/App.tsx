@@ -1,8 +1,34 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 
-const STEPS = 16;
+const DEFAULT_STEPS = 16;
 const STEP_INTERVALS_PER_BEAT = 4; // 16th notes
+const STEP_OPTIONS = [16, 8] as const;
+
+const scheduleIdleCallback = (callback: IdleRequestCallback, options?: IdleRequestOptions): number => {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window && window.requestIdleCallback) {
+    return window.requestIdleCallback(callback, options);
+  }
+
+  const timeout = options?.timeout ?? 1;
+  return window.setTimeout(
+    () =>
+      callback({
+        didTimeout: false,
+        timeRemaining: () => 0,
+      } as IdleDeadline),
+    timeout,
+  );
+};
+
+const cancelIdleCallback = (handle: number) => {
+  if (typeof window !== 'undefined' && 'cancelIdleCallback' in window && window.cancelIdleCallback) {
+    window.cancelIdleCallback(handle);
+    return;
+  }
+
+  window.clearTimeout(handle);
+};
 
 const instruments = [
   { id: 'kick', label: 'キック', accent: '#f97316' },
@@ -13,17 +39,17 @@ const instruments = [
 type InstrumentId = (typeof instruments)[number]['id'];
 type Pattern = Record<InstrumentId, boolean[]>;
 
-const createEmptyPattern = (): Pattern => {
+const createEmptyPattern = (steps: number): Pattern => {
   const base: Record<string, boolean[]> = {};
   instruments.forEach(({ id }) => {
-    base[id] = Array(STEPS).fill(false);
+    base[id] = Array(steps).fill(false);
   });
   return base as Pattern;
 };
 
-const encodePattern = (pattern: Pattern): string => {
+const encodePattern = (pattern: Pattern, steps: number): string => {
   const bits: number[] = [];
-  for (let step = 0; step < STEPS; step += 1) {
+  for (let step = 0; step < steps; step += 1) {
     instruments.forEach((inst) => {
       bits.push(pattern[inst.id][step] ? 1 : 0);
     });
@@ -41,8 +67,8 @@ const encodePattern = (pattern: Pattern): string => {
   return btoa(binary).replace(/=+$/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 };
 
-const decodePattern = (encoded: string | null): Pattern => {
-  if (!encoded) return createEmptyPattern();
+const decodePattern = (encoded: string | null, steps: number): Pattern => {
+  if (!encoded) return createEmptyPattern(steps);
   try {
     const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
     const padded = normalized + '==='.slice((normalized.length + 3) % 4);
@@ -54,8 +80,8 @@ const decodePattern = (encoded: string | null): Pattern => {
         bits.push((byte >> bit) & 1);
       }
     }
-    const pattern = createEmptyPattern();
-    for (let step = 0; step < STEPS; step += 1) {
+    const pattern = createEmptyPattern(steps);
+    for (let step = 0; step < steps; step += 1) {
       instruments.forEach((inst, instIdx) => {
         const idx = step * instruments.length + instIdx;
         pattern[inst.id][step] = Boolean(bits[idx]);
@@ -64,7 +90,7 @@ const decodePattern = (encoded: string | null): Pattern => {
     return pattern;
   } catch (err) {
     console.warn('パターンの読み込みに失敗しました', err);
-    return createEmptyPattern();
+    return createEmptyPattern(steps);
   }
 };
 
@@ -95,14 +121,26 @@ const createNoiseBuffer = (context: AudioContext) => {
 const playKick = (context: AudioContext, time: number) => {
   const osc = context.createOscillator();
   const gain = context.createGain();
+  const clickOsc = context.createOscillator();
+  const clickGain = context.createGain();
+
   osc.type = 'sine';
-  osc.frequency.setValueAtTime(120, time);
-  osc.frequency.exponentialRampToValueAtTime(50, time + 0.1);
-  gain.gain.setValueAtTime(1, time);
-  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+  osc.frequency.setValueAtTime(180, time);
+  osc.frequency.exponentialRampToValueAtTime(45, time + 0.12);
+  gain.gain.setValueAtTime(1.1, time);
+  gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
   osc.connect(gain).connect(context.destination);
+
+  clickOsc.type = 'square';
+  clickOsc.frequency.setValueAtTime(1000, time);
+  clickGain.gain.setValueAtTime(0.35, time);
+  clickGain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+  clickOsc.connect(clickGain).connect(context.destination);
+
   osc.start(time);
   osc.stop(time + 0.5);
+  clickOsc.start(time);
+  clickOsc.stop(time + 0.08);
 };
 
 const playSnare = (context: AudioContext, time: number, noiseBuffer: AudioBuffer) => {
@@ -146,31 +184,82 @@ const playHiHat = (context: AudioContext, time: number, noiseBuffer: AudioBuffer
 };
 
 const App: React.FC = () => {
-  const [pattern, setPattern] = useState<Pattern>(() => decodePattern(new URL(window.location.href).searchParams.get('p')));
+  const getInitialSteps = (): (typeof STEP_OPTIONS)[number] => {
+    const param = new URL(window.location.href).searchParams.get('l');
+    const parsed = Number(param);
+    return STEP_OPTIONS.includes(parsed as (typeof STEP_OPTIONS)[number])
+      ? (parsed as (typeof STEP_OPTIONS)[number])
+      : DEFAULT_STEPS;
+  };
+
+  const [steps, setSteps] = useState<(typeof STEP_OPTIONS)[number]>(getInitialSteps);
+  const [pattern, setPattern] = useState<Pattern>(() =>
+    decodePattern(new URL(window.location.href).searchParams.get('p'), getInitialSteps()),
+  );
   const [bpm, setBpm] = useState(110);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [shareLink, setShareLink] = useState('');
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string | null>(null);
 
   const { ctx, ensureContext } = useAudioContext();
   const noiseBufferRef = useRef<AudioBuffer | null>(null);
+  const shareTimeoutRef = useRef<number | null>(null);
+  const idleCallbackRef = useRef<number | null>(null);
 
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
+  const stepsRef = useRef(steps);
 
   useEffect(() => {
     patternRef.current = pattern;
-    const url = new URL(window.location.href);
-    const encoded = encodePattern(pattern);
-    url.searchParams.set('p', encoded);
-    window.history.replaceState(null, '', url.toString());
-    setShareLink(url.toString());
-  }, [pattern]);
+    if (shareTimeoutRef.current) {
+      window.clearTimeout(shareTimeoutRef.current);
+    }
+    if (idleCallbackRef.current !== null) {
+      cancelIdleCallback(idleCallbackRef.current);
+      idleCallbackRef.current = null;
+    }
+
+    setIsGeneratingLink(true);
+    shareTimeoutRef.current = window.setTimeout(() => {
+      const generateLink = () => {
+        const url = new URL(window.location.href);
+        const encoded = encodePattern(patternRef.current, steps);
+        url.searchParams.set('p', encoded);
+        url.searchParams.set('l', String(steps));
+        window.history.replaceState(null, '', url.toString());
+        setShareLink(url.toString());
+        setIsGeneratingLink(false);
+        idleCallbackRef.current = null;
+      };
+
+      idleCallbackRef.current = scheduleIdleCallback(generateLink, { timeout: 300 });
+
+      shareTimeoutRef.current = null;
+    }, 150);
+
+    return () => {
+      if (shareTimeoutRef.current) {
+        window.clearTimeout(shareTimeoutRef.current);
+        shareTimeoutRef.current = null;
+      }
+      if (idleCallbackRef.current !== null) {
+        cancelIdleCallback(idleCallbackRef.current);
+        idleCallbackRef.current = null;
+      }
+    };
+  }, [pattern, steps]);
 
   useEffect(() => {
     bpmRef.current = bpm;
   }, [bpm]);
+
+  useEffect(() => {
+    stepsRef.current = steps;
+    setCurrentStep((prev) => prev % steps);
+  }, [steps]);
 
   useEffect(() => {
     if (!ctx) return;
@@ -184,7 +273,7 @@ const App: React.FC = () => {
     const intervalMs = 60000 / (bpmRef.current * STEP_INTERVALS_PER_BEAT);
     const id = setInterval(() => {
       setCurrentStep((prev) => {
-        const nextStep = (prev + 1) % STEPS;
+        const nextStep = (prev + 1) % stepsRef.current;
         const now = ensureContext().currentTime;
         const buffer = noiseBufferRef.current;
         instruments.forEach((inst, instIdx) => {
@@ -202,10 +291,39 @@ const App: React.FC = () => {
   }, [isPlaying, ensureContext]);
 
   const toggleStep = (instrumentId: InstrumentId, step: number) => {
-    setPattern((prev) => ({
-      ...prev,
-      [instrumentId]: prev[instrumentId].map((val, idx) => (idx === step ? !val : val)),
-    }));
+    setPattern((prev) => {
+      const row = prev[instrumentId];
+      const updatedRow = row.slice();
+      updatedRow[step] = !row[step];
+
+      if (updatedRow[step] === row[step]) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [instrumentId]: updatedRow,
+      };
+    });
+  };
+
+  const handleStepsChange = (nextSteps: (typeof STEP_OPTIONS)[number]) => {
+    if (nextSteps === stepsRef.current) return;
+    setSteps(nextSteps);
+    setPattern((prev) => {
+      const resized: Record<InstrumentId, boolean[]> = {} as Record<InstrumentId, boolean[]>;
+      instruments.forEach(({ id }) => {
+        const current = prev[id];
+        if (nextSteps < current.length) {
+          resized[id] = current.slice(0, nextSteps);
+        } else {
+          const missing = nextSteps - current.length;
+          const copy = current.slice(0, missing);
+          resized[id] = [...current, ...copy];
+        }
+      });
+      return resized as Pattern;
+    });
   };
 
   const handlePlayToggle = async () => {
@@ -238,14 +356,14 @@ const App: React.FC = () => {
       {
         label: '定番の4つ打ち',
         pattern: (() => {
-          const base = createEmptyPattern();
-          for (let i = 0; i < STEPS; i += 4) {
+          const base = createEmptyPattern(steps);
+          for (let i = 0; i < steps; i += 4) {
             base.kick[i] = true;
           }
-          for (let i = 2; i < STEPS; i += 4) {
+          for (let i = 2; i < steps; i += 4) {
             base.snare[i] = true;
           }
-          for (let i = 0; i < STEPS; i += 2) {
+          for (let i = 0; i < steps; i += 2) {
             base.hihat[i] = true;
           }
           return base;
@@ -254,17 +372,19 @@ const App: React.FC = () => {
       {
         label: 'ハーフタイム',
         pattern: (() => {
-          const base = createEmptyPattern();
-          [0, 8].forEach((i) => (base.kick[i] = true));
-          [4, 12].forEach((i) => (base.snare[i] = true));
-          for (let i = 1; i < STEPS; i += 2) {
+          const base = createEmptyPattern(steps);
+          [0, Math.floor(steps / 2)].forEach((i) => (base.kick[i] = true));
+          [Math.floor(steps / 4), Math.floor((steps * 3) / 4)].forEach((i) =>
+            (base.snare[i] = true),
+          );
+          for (let i = 1; i < steps; i += 2) {
             base.hihat[i] = true;
           }
           return base;
         })(),
       },
     ],
-    [],
+    [steps],
   );
 
   return (
@@ -279,7 +399,7 @@ const App: React.FC = () => {
           <button className="primary" onClick={handlePlayToggle}>
             {isPlaying ? '一時停止' : '再生'}
           </button>
-          <button className="ghost" onClick={() => setPattern(createEmptyPattern())}>クリア</button>
+          <button className="ghost" onClick={() => setPattern(createEmptyPattern(steps))}>クリア</button>
         </div>
       </header>
 
@@ -296,6 +416,20 @@ const App: React.FC = () => {
               onChange={(e) => setBpm(Number(e.target.value))}
             />
             <span>{bpm} BPM</span>
+          </div>
+        </div>
+        <div className="control">
+          <label>シーケンサ長</label>
+          <div className="step-length-toggle">
+            {STEP_OPTIONS.map((option) => (
+              <button
+                key={option}
+                className={`secondary ${steps === option ? 'active' : ''}`}
+                onClick={() => handleStepsChange(option)}
+              >
+                {option} ステップ
+              </button>
+            ))}
           </div>
         </div>
         <div className="control presets">
@@ -343,9 +477,10 @@ const App: React.FC = () => {
             QRコードを表示
           </button>
         </div>
-        {shareLink && (
+        {(shareLink || isGeneratingLink) && (
           <div className="share-link">
-            <code>{shareLink}</code>
+            <code>{shareLink || 'リンクを生成しています…'}</code>
+            {isGeneratingLink && <span className="loader" aria-label="リンク生成中" />}
           </div>
         )}
         {qrCodeData && (
