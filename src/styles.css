@@ -116,6 +116,19 @@ button {
   flex: 1;
 }
 
+.step-length-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.secondary.active {
+  background: #22c55e;
+  color: #0f172a;
+  border-color: rgba(34, 197, 94, 0.7);
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.35);
+}
+
 .presets {
   display: flex;
   flex-wrap: wrap;

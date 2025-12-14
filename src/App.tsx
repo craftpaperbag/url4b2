@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 
-const STEPS = 16;
+const DEFAULT_STEPS = 16;
 const STEP_INTERVALS_PER_BEAT = 4; // 16th notes
+const STEP_OPTIONS = [16, 8] as const;
 
 const instruments = [
   { id: 'kick', label: 'キック', accent: '#f97316' },
@@ -13,17 +14,17 @@ const instruments = [
 type InstrumentId = (typeof instruments)[number]['id'];
 type Pattern = Record<InstrumentId, boolean[]>;
 
-const createEmptyPattern = (): Pattern => {
+const createEmptyPattern = (steps: number): Pattern => {
   const base: Record<string, boolean[]> = {};
   instruments.forEach(({ id }) => {
-    base[id] = Array(STEPS).fill(false);
+    base[id] = Array(steps).fill(false);
   });
   return base as Pattern;
 };
 
-const encodePattern = (pattern: Pattern): string => {
+const encodePattern = (pattern: Pattern, steps: number): string => {
   const bits: number[] = [];
-  for (let step = 0; step < STEPS; step += 1) {
+  for (let step = 0; step < steps; step += 1) {
     instruments.forEach((inst) => {
       bits.push(pattern[inst.id][step] ? 1 : 0);
     });
@@ -41,8 +42,8 @@ const encodePattern = (pattern: Pattern): string => {
   return btoa(binary).replace(/=+$/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 };
 
-const decodePattern = (encoded: string | null): Pattern => {
-  if (!encoded) return createEmptyPattern();
+const decodePattern = (encoded: string | null, steps: number): Pattern => {
+  if (!encoded) return createEmptyPattern(steps);
   try {
     const normalized = encoded.replace(/-/g, '+').replace(/_/g, '/');
     const padded = normalized + '==='.slice((normalized.length + 3) % 4);
@@ -54,8 +55,8 @@ const decodePattern = (encoded: string | null): Pattern => {
         bits.push((byte >> bit) & 1);
       }
     }
-    const pattern = createEmptyPattern();
-    for (let step = 0; step < STEPS; step += 1) {
+    const pattern = createEmptyPattern(steps);
+    for (let step = 0; step < steps; step += 1) {
       instruments.forEach((inst, instIdx) => {
         const idx = step * instruments.length + instIdx;
         pattern[inst.id][step] = Boolean(bits[idx]);
@@ -64,7 +65,7 @@ const decodePattern = (encoded: string | null): Pattern => {
     return pattern;
   } catch (err) {
     console.warn('パターンの読み込みに失敗しました', err);
-    return createEmptyPattern();
+    return createEmptyPattern(steps);
   }
 };
 
@@ -158,7 +159,17 @@ const playHiHat = (context: AudioContext, time: number, noiseBuffer: AudioBuffer
 };
 
 const App: React.FC = () => {
-  const [pattern, setPattern] = useState<Pattern>(() => decodePattern(new URL(window.location.href).searchParams.get('p')));
+  const getInitialSteps = () => {
+    const param = new URL(window.location.href).searchParams.get('l');
+    return STEP_OPTIONS.includes(Number(param) as (typeof STEP_OPTIONS)[number])
+      ? Number(param)
+      : DEFAULT_STEPS;
+  };
+
+  const [steps, setSteps] = useState<(typeof STEP_OPTIONS)[number]>(getInitialSteps);
+  const [pattern, setPattern] = useState<Pattern>(() =>
+    decodePattern(new URL(window.location.href).searchParams.get('p'), getInitialSteps()),
+  );
   const [bpm, setBpm] = useState(110);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -172,6 +183,7 @@ const App: React.FC = () => {
 
   const patternRef = useRef(pattern);
   const bpmRef = useRef(bpm);
+  const stepsRef = useRef(steps);
 
   useEffect(() => {
     patternRef.current = pattern;
@@ -182,8 +194,9 @@ const App: React.FC = () => {
     setIsGeneratingLink(true);
     shareTimeoutRef.current = window.setTimeout(() => {
       const url = new URL(window.location.href);
-      const encoded = encodePattern(pattern);
+      const encoded = encodePattern(pattern, stepsRef.current);
       url.searchParams.set('p', encoded);
+      url.searchParams.set('l', String(stepsRef.current));
       window.history.replaceState(null, '', url.toString());
       setShareLink(url.toString());
       setIsGeneratingLink(false);
@@ -203,6 +216,11 @@ const App: React.FC = () => {
   }, [bpm]);
 
   useEffect(() => {
+    stepsRef.current = steps;
+    setCurrentStep((prev) => prev % steps);
+  }, [steps]);
+
+  useEffect(() => {
     if (!ctx) return;
     if (!noiseBufferRef.current) {
       noiseBufferRef.current = createNoiseBuffer(ctx);
@@ -214,7 +232,7 @@ const App: React.FC = () => {
     const intervalMs = 60000 / (bpmRef.current * STEP_INTERVALS_PER_BEAT);
     const id = setInterval(() => {
       setCurrentStep((prev) => {
-        const nextStep = (prev + 1) % STEPS;
+        const nextStep = (prev + 1) % stepsRef.current;
         const now = ensureContext().currentTime;
         const buffer = noiseBufferRef.current;
         instruments.forEach((inst, instIdx) => {
@@ -236,6 +254,23 @@ const App: React.FC = () => {
       ...prev,
       [instrumentId]: prev[instrumentId].map((val, idx) => (idx === step ? !val : val)),
     }));
+  };
+
+  const handleStepsChange = (nextSteps: (typeof STEP_OPTIONS)[number]) => {
+    if (nextSteps === stepsRef.current) return;
+    setSteps(nextSteps);
+    setPattern((prev) => {
+      const resized: Record<InstrumentId, boolean[]> = {} as Record<InstrumentId, boolean[]>;
+      instruments.forEach(({ id }) => {
+        const current = prev[id];
+        if (nextSteps < current.length) {
+          resized[id] = current.slice(0, nextSteps);
+        } else {
+          resized[id] = [...current, ...Array(nextSteps - current.length).fill(false)];
+        }
+      });
+      return resized as Pattern;
+    });
   };
 
   const handlePlayToggle = async () => {
@@ -268,14 +303,14 @@ const App: React.FC = () => {
       {
         label: '定番の4つ打ち',
         pattern: (() => {
-          const base = createEmptyPattern();
-          for (let i = 0; i < STEPS; i += 4) {
+          const base = createEmptyPattern(steps);
+          for (let i = 0; i < steps; i += 4) {
             base.kick[i] = true;
           }
-          for (let i = 2; i < STEPS; i += 4) {
+          for (let i = 2; i < steps; i += 4) {
             base.snare[i] = true;
           }
-          for (let i = 0; i < STEPS; i += 2) {
+          for (let i = 0; i < steps; i += 2) {
             base.hihat[i] = true;
           }
           return base;
@@ -284,17 +319,19 @@ const App: React.FC = () => {
       {
         label: 'ハーフタイム',
         pattern: (() => {
-          const base = createEmptyPattern();
-          [0, 8].forEach((i) => (base.kick[i] = true));
-          [4, 12].forEach((i) => (base.snare[i] = true));
-          for (let i = 1; i < STEPS; i += 2) {
+          const base = createEmptyPattern(steps);
+          [0, Math.floor(steps / 2)].forEach((i) => (base.kick[i] = true));
+          [Math.floor(steps / 4), Math.floor((steps * 3) / 4)].forEach((i) =>
+            (base.snare[i] = true),
+          );
+          for (let i = 1; i < steps; i += 2) {
             base.hihat[i] = true;
           }
           return base;
         })(),
       },
     ],
-    [],
+    [steps],
   );
 
   return (
@@ -326,6 +363,20 @@ const App: React.FC = () => {
               onChange={(e) => setBpm(Number(e.target.value))}
             />
             <span>{bpm} BPM</span>
+          </div>
+        </div>
+        <div className="control">
+          <label>シーケンサ長</label>
+          <div className="step-length-toggle">
+            {STEP_OPTIONS.map((option) => (
+              <button
+                key={option}
+                className={`secondary ${steps === option ? 'active' : ''}`}
+                onClick={() => handleStepsChange(option)}
+              >
+                {option} ステップ
+              </button>
+            ))}
           </div>
         </div>
         <div className="control presets">
